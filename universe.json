@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-30",
+  "symbols": [
+    "BNO",
+    "EWT",
+    "XBI",
+    "VLUE",
+    "OIH"
+  ],
+  "picks": [
+    {
+      "symbol": "BNO",
+      "name": "United States Brent Oil Fund",
+      "momentum_12_1": 0.9806,
+      "kept": false
+    },
+    {
+      "symbol": "EWT",
+      "name": "iShares MSCI Taiwan Capped ETF",
+      "momentum_12_1": 0.7898,
+      "kept": false
+    },
+    {
+      "symbol": "XBI",
+      "name": "State Street SPDR S&P Biotech ETF",
+      "momentum_12_1": 0.5863,
+      "kept": false
+    },
+    {
+      "symbol": "VLUE",
+      "name": "iShares MSCI USA Value Factor ETF",
+      "momentum_12_1": 0.5859,
+      "kept": false
+    },
+    {
+      "symbol": "OIH",
+      "name": "VanEck Oil Services ETF",
+      "momentum_12_1": 0.43,
+      "kept": false
+    }
+  ]
+}
