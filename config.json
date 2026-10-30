@@ -1,0 +1,13 @@
+{
+  "mode": "dry_run",
+  "budget_usd": 500,
+  "max_order_usd": 150,
+  "min_order_usd": 5,
+  "max_orders_per_day": 3,
+  "max_drawdown_pct": 0.15,
+  "cash_reserve_pct": 0.05,
+  "limit_buffer_pct": 0.005,
+  "rebalance_band_pct": 0.20,
+  "sma_days": 200,
+  "symbols": ["SPY", "QQQ", "VXUS"]
+}

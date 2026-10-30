@@ -1,0 +1,18 @@
+{
+  "account": {
+    "total_value": 500.00,
+    "cash": 500.00,
+    "positions": [],
+    "open_orders": [],
+    "quotes": {
+      "SPY": {"bid": 99.90, "ask": 100.00},
+      "QQQ": {"bid": 49.90, "ask": 50.00},
+      "VXUS": {"bid": 59.90, "ask": 60.00}
+    }
+  },
+  "closes": {
+    "SPY": [95, 96, 97, 98, 99, 100],
+    "QQQ": [55, 54, 53, 52, 51, 50],
+    "VXUS": [60]
+  }
+}
