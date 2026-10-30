@@ -1,0 +1,13 @@
+{
+  "held": [],
+  "candidates": [
+    {"symbol": "SPY", "name": "SPDR S&P 500 ETF Trust", "return_12m": 0.11,
+     "avg_dollar_volume": 30000000000, "hist_vol_1m": 0.10},
+    {"symbol": "SSO", "name": "ProShares Ultra S&P 500 ETF", "return_12m": 0.20,
+     "avg_dollar_volume": 400000000, "hist_vol_1m": 0.20}
+  ],
+  "closes": {
+    "SPY": [500, 501, 502],
+    "SSO": [90, 91, 92]
+  }
+}

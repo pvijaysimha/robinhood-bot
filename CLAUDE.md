@@ -13,11 +13,19 @@ Trading MCP (`robinhood-trading`). Follow these steps exactly when asked to
 - Never place an order without the human's explicit "yes" for that order
   in this conversation. Silence, "looks good" to the plan as a whole, or an
   earlier session's approval does not count.
-- Limit orders only. No options, no market orders, no symbols outside `config.json`.
+- Limit orders only. No options, no market orders.
+- Buy only symbols in the current universe (the `symbols` that
+  `python3 -m bot.cli universe` prints). Sell only those, or the rotated-out
+  `exits` the plan lists.
+- Never edit `universe.json` by hand. Only `python3 -m bot.cli screen` writes it.
 - Never estimate or invent a number. If an MCP call fails or a field is
   missing, stop and tell the human what failed.
 
 ## Steps
+
+0. **Universe.** Run `python3 -m bot.cli universe`. If `buys_blocked` says to
+   run the screen, do "Screening the universe" below first, show the human
+   what was added and removed, then come back here.
 
 1. **Snapshot.** Using the `robinhood-trading` tools, collect and write
    `snapshot.json` (shape: `examples/snapshot.example.json`), copying values
@@ -27,9 +35,10 @@ Trading MCP (`robinhood-trading`). Follow these steps exactly when asked to
      `market_value` (quantity × current price)
    - `get_equity_orders` → `account.open_orders`: every order not yet in a
      terminal state (filled, cancelled, rejected, failed, voided)
-   - `get_equity_quotes` for every symbol in `config.json` → `account.quotes`: `bid`, `ask`
+   - `get_equity_quotes` for every symbol in step 0's `symbols`, plus any
+     symbol in `snapshot_if_held` that the account holds → `account.quotes`: `bid`, `ask`
    - `get_equity_historicals` (interval day, last ~300 calendar days) for
-     each symbol → `closes[symbol]`, oldest first
+     the same symbols → `closes[symbol]`, oldest first
 
    If a tool has a different name, use the equivalent one and say which.
 
@@ -37,7 +46,8 @@ Trading MCP (`robinhood-trading`). Follow these steps exactly when asked to
 
 3. **Show the plan.** Give the human a short table: each symbol's signal
    and target, then each order with side, quantity, limit price, dollar
-   amount, and approved or rejected with the reasons.
+   amount, and approved or rejected with the reasons. Call out any `exits`
+   (rotated out of the universe) and any `buys_blocked` reason.
 
 4. **Stop here if `mode` is `dry_run`.** Say what would have been placed.
 
@@ -51,5 +61,34 @@ Trading MCP (`robinhood-trading`). Follow these steps exactly when asked to
    5. Run `python3 -m bot.cli record --symbol ... --side ... --quantity ...
       --limit-price ... --order-id ... --state ...`.
 
-6. **Commit** `logs/` with a message like `Trading run YYYY-MM-DD` so the
-   record survives.
+6. **Commit** `logs/` and `universe.json` with a message like
+   `Trading run YYYY-MM-DD` so the record survives.
+
+## Screening the universe (when step 0 says so, or the human asks)
+
+This picks the symbols. It never trades and never edits `config.json`. The
+rules (`top`, `keep_while_in_top`, `max_age_days`) are in `config.json`'s
+`universe` block, and the filters below are fixed. Do not loosen them.
+
+1. Call `preview_scan` (not `create_scan`, so nothing is saved) with these
+   filters: asset type `ETF`; expression
+   `turnoverAvg(candleCount=30, candlePeriod="1d", session="regular")` >=
+   `50000000`; expression `tradeAllDay.price > closeAvg(candleCount=200,
+   candlePeriod="1d", session="regular")` = `True`; historical volatility
+   < `0.35`. Add a `12M return` column:
+   `tradeAllDay.price / close(timePeriod="1y", candlePeriod="1d", session="regular") - 1`.
+2. Drop names that `bot.screen.excluded()` flags, then keep the 40 with the
+   highest 12M return.
+   Also add every symbol the account holds that is in the current universe
+   or `snapshot_if_held`, even if the scan dropped it, so held funds are
+   judged on the same terms.
+3. `get_equity_historicals` (interval day, last ~420 calendar days, 10
+   symbols per call) for those symbols.
+4. Write `candidates.json` (shape: `examples/candidates.example.json`; `held`
+   lists the held symbols from step 2) and run
+   `python3 -m bot.cli screen candidates.json`. It writes `universe.json`.
+5. Show the human the new universe, what was `added` and `removed`, and why
+   the closest runners-up were skipped. Removed funds the bot bought are sold
+   as `exits` on the next plan, each still needing the human's "yes".
+6. Commit `universe.json` and `logs/screens.jsonl` with a message like
+   `Screen YYYY-MM-DD`.

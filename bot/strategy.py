@@ -21,6 +21,8 @@ def targets(config, total_value, closes_by_symbol):
     """Dollar target per symbol. Sizes off the smaller of budget and account
     value, so deposits above the budget are never put to work."""
     symbols = config["symbols"]
+    if not symbols:
+        return {}, 0.0
     investable = min(config["budget_usd"], total_value) * (1 - config["cash_reserve_pct"])
     slot = investable / len(symbols)
     out = {}
@@ -30,12 +32,20 @@ def targets(config, total_value, closes_by_symbol):
     return out, slot
 
 
-def propose_orders(config, account, closes_by_symbol):
-    """Turn targets into limit orders. Symbols with no signal are left alone."""
+def propose_orders(config, account, closes_by_symbol, exits=()):
+    """Turn targets into limit orders. Symbols with no signal are left alone.
+    Symbols in exits (rotated out of the universe) are sold in full."""
     tgts, slot = targets(config, account["total_value"], closes_by_symbol)
     held = {p["symbol"]: p for p in account["positions"]}
     buf = config["limit_buffer_pct"]
     orders = []
+    for sym in exits:
+        pos = held.get(sym)
+        if pos and pos["quantity"] > 0:
+            limit = round(account["quotes"][sym]["bid"] * (1 - buf), 2)
+            orders.append({"symbol": sym, "side": "sell", "type": "limit",
+                           "quantity": pos["quantity"], "limit_price": limit,
+                           "reason": "rotated out of universe: exit"})
     for sym, t in tgts.items():
         if t["target_usd"] is None:
             continue

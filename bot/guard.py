@@ -3,10 +3,14 @@ anything it rejects must not be placed. Orders are checked in sequence so
 each approval counts against the limits for the ones after it."""
 
 PRICE_TOLERANCE = 0.01  # cents of slack for rounding
+MAX_SPREAD_PCT = 0.005  # a wider quote (often after hours) is not a fair price
 
 
-def check_orders(config, account, orders, orders_placed_today):
+def check_orders(config, account, orders, orders_placed_today, exits=(), buys_blocked=None):
+    """exits: rotated-out symbols that may be sold but not bought.
+    buys_blocked: None, or the reason every buy is rejected."""
     symbols = set(config["symbols"])
+    sellable = symbols | set(exits)
     held = {p["symbol"]: p for p in account["positions"]}
     open_syms = {o["symbol"] for o in account.get("open_orders", [])}
     buf = config["limit_buffer_pct"]
@@ -25,7 +29,7 @@ def check_orders(config, account, orders, orders_placed_today):
         qty = o.get("quantity") or 0
         limit = o.get("limit_price")
 
-        if sym not in symbols:
+        if sym not in (sellable if o.get("side") == "sell" else symbols):
             reasons.append(f"{sym} is not in the allowed symbols")
         if o.get("type") != "limit" or not limit or limit <= 0:
             reasons.append("only limit orders with a positive limit price are allowed")
@@ -37,10 +41,17 @@ def check_orders(config, account, orders, orders_placed_today):
             reasons.append(f"daily order limit reached ({config['max_orders_per_day']})")
         if quote is None:
             reasons.append(f"no quote for {sym}")
+        else:
+            mid = (quote["bid"] + quote["ask"]) / 2
+            if mid <= 0 or (quote["ask"] - quote["bid"]) / mid > MAX_SPREAD_PCT:
+                reasons.append(f"spread ${quote['bid']}-${quote['ask']} is wider than "
+                               f"{MAX_SPREAD_PCT:.1%}: wait for regular hours")
 
         notional = qty * (limit or 0)
         if not reasons:
             if o["side"] == "buy":
+                if buys_blocked:
+                    reasons.append(f"buys blocked: {buys_blocked}")
                 if buys_halted:
                     reasons.append(f"buys halted: account value ${account['total_value']:.2f} "
                                    f"is below the drawdown floor ${halt_floor:.2f}")
