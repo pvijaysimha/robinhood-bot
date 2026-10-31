@@ -70,6 +70,11 @@ Claude runs before trading. It can't physically stop a direct
 Agentic account is the most you can lose, and every order needs your
 explicit "yes" (see `CLAUDE.md`). Read each order before approving it.
 
+**Turn on trade approvals in the Robinhood app before going live.** Then
+every order the bot submits also waits for your approval at the broker,
+which no code or prompt can skip. In `live` mode the runbook checks this
+setting and places nothing while it is off.
+
 ## Setup
 
 1. In your local terminal, connect the Robinhood MCP (once):

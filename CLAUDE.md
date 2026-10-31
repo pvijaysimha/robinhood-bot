@@ -51,13 +51,22 @@ Trading MCP (`robinhood-trading`). Follow these steps exactly when asked to
 
 4. **Stop here if `mode` is `dry_run`.** Say what would have been placed.
 
-5. **If `mode` is `live`**, for each approved order, one at a time:
-   1. Ask the human to approve that specific order. Wait for "yes".
+5. **If `mode` is `live`**, first call `get_trade_approval_setting` for the
+   account. Unless `human_must_approve_trades` is `true`, place nothing:
+   tell the human to turn on trade approvals in the Robinhood app, so every
+   order also needs their approval at the broker, and stop. Read the setting
+   again on every live run; it can be changed in the app at any time.
+   Then, for each approved order, one at a time:
+   1. Ask the human to approve that specific order. Wait for "yes". If the
+      quotes in `snapshot.json` are more than 15 minutes old by then, do
+      not place it: rebuild the snapshot, run the plan again and ask again.
    2. Call `review_equity_order` with exactly the planned parameters
       (limit order, the planned quantity and limit price). If it returns
       any alert or warning, show it verbatim and do not place that order.
    3. Call `place_equity_order` with the same parameters.
-   4. Call `get_equity_orders` for that order ID to get its real state.
+   4. Call `get_equity_orders` for that order ID to get its real state, and
+      tell the human the order is waiting for their approval in the
+      Robinhood app if that is what the state or `get_trade_approvals` shows.
    5. Run `python3 -m bot.cli record --symbol ... --side ... --quantity ...
       --limit-price ... --order-id ... --state ...`.
 
