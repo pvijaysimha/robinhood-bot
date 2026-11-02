@@ -1,6 +1,7 @@
+import datetime
 import unittest
 
-from bot.guard import check_orders
+from bot.guard import EASTERN, check_orders
 from bot.screen import MIN_HISTORY, excluded, screen
 from bot.strategy import propose_orders, signal
 from bot.universe import allowed_symbols, bought_symbols, exits
@@ -11,6 +12,8 @@ CONFIG = {
     "limit_buffer_pct": 0.005, "rebalance_band_pct": 0.20, "sma_days": 5,
     "symbols": ["SPY", "QQQ", "VXUS"],
 }
+FRACTIONAL = {**CONFIG, "allow_fractional_market": True}
+OPEN = datetime.datetime(2026, 11, 3, 11, 0, tzinfo=EASTERN)  # a Tuesday, 11:00 ET
 UP = [10, 10, 10, 10, 12]
 DOWN = [10, 10, 10, 10, 8]
 QUOTES = {"SPY": {"bid": 99.9, "ask": 100.0}, "QQQ": {"bid": 49.9, "ask": 50.0},
@@ -51,8 +54,9 @@ class StrategyTest(unittest.TestCase):
 
     def test_strategy_output_passes_guard(self):
         acct = account()
-        orders, _ = propose_orders(CONFIG, acct, {"SPY": UP, "QQQ": UP, "VXUS": UP})
-        self.assertTrue(all(r["approved"] for r in check_orders(CONFIG, acct, orders, 0)))
+        orders, _ = propose_orders(FRACTIONAL, acct, {"SPY": UP, "QQQ": UP, "VXUS": UP})
+        checked = check_orders(FRACTIONAL, acct, orders, 0, now=OPEN)
+        self.assertTrue(all(r["approved"] for r in checked), checked)
 
 
 class GuardTest(unittest.TestCase):
@@ -75,7 +79,7 @@ class GuardTest(unittest.TestCase):
     def test_budget_counts_earlier_approvals(self):
         pos = [{"symbol": "QQQ", "quantity": 6.0, "market_value": 300.0}]
         acct = account(cash=400, positions=pos)
-        r = self.check([buy("SPY", 1.4), buy("VXUS", 2.4, 60.3)], acct)
+        r = self.check([buy("SPY", 1.0), buy("VXUS", 2.0, 60.3)], acct)
         self.assertEqual([x["approved"] for x in r], [True, False])
         self.assertIn("over budget_usd", r[1]["reasons"][0])
 
@@ -178,12 +182,12 @@ class UniverseTest(unittest.TestCase):
         self.assertEqual(exits(["VXUS", "QQQ", "AAPL", "SPY"], ["SPY"], bought), ["VXUS"])
 
     def test_rotated_out_symbol_is_sold_and_guard_allows_it(self):
-        cfg = {**CONFIG, "symbols": ["SPY"]}
+        cfg = {**FRACTIONAL, "symbols": ["SPY"]}
         pos = [{"symbol": "VXUS", "quantity": 1.5, "market_value": 90.0}]
         acct = account(cash=410, positions=pos)
         orders, _ = propose_orders(cfg, acct, {"SPY": UP}, exits=["VXUS"])
         self.assertEqual([(o["symbol"], o["side"]) for o in orders], [("VXUS", "sell"), ("SPY", "buy")])
-        checked = check_orders(cfg, acct, orders, 0, exits=["VXUS"])
+        checked = check_orders(cfg, acct, orders, 0, exits=["VXUS"], now=OPEN)
         self.assertTrue(all(r["approved"] for r in checked), checked)
 
     def test_exit_symbol_cannot_be_bought(self):
@@ -211,7 +215,7 @@ class UniverseTest(unittest.TestCase):
         self.assertIn("spread", r["reasons"][0])
 
 
-MIX = {**CONFIG, "symbols": ["SPY", "QQQ", "VXUS"],
+MIX = {**FRACTIONAL, "symbols": ["SPY", "QQQ", "VXUS"],
        "weights": {"SPY": 0.6, "QQQ": 0.2, "VXUS": 0.2}, "trend_filter": []}
 
 
@@ -236,7 +240,7 @@ class WeightsTest(unittest.TestCase):
     def test_big_weight_is_built_in_capped_orders(self):
         orders, _ = propose_orders(MIX, account(), {})
         spy = next(o for o in orders if o["symbol"] == "SPY")
-        self.assertAlmostEqual(spy["quantity"] * spy["limit_price"], 150, delta=0.01)
+        self.assertEqual((spy["type"], spy["dollar_amount"]), ("market", 150))
 
     def test_bad_weights_rejected(self):
         for w in [{"SPY": 0.6, "QQQ": 0.2}, {"SPY": 0.7, "QQQ": 0.2, "VXUS": 0.2}]:
@@ -246,4 +250,63 @@ class WeightsTest(unittest.TestCase):
     def test_mix_passes_guard(self):
         acct = account()
         orders, _ = propose_orders(MIX, acct, {})
-        self.assertTrue(all(r["approved"] for r in check_orders(MIX, acct, orders, 0)))
+        self.assertTrue(all(r["approved"] for r in check_orders(MIX, acct, orders, 0, now=OPEN)))
+
+
+def market_buy(sym="SPY", amount=100.0):
+    return {"symbol": sym, "side": "buy", "type": "market", "dollar_amount": amount}
+
+
+def market_sell(sym="SPY", qty=0.5):
+    return {"symbol": sym, "side": "sell", "type": "market", "quantity": qty}
+
+
+class FractionalMarketTest(unittest.TestCase):
+    HELD = [{"symbol": "SPY", "quantity": 1.5, "market_value": 150.0}]
+
+    def check(self, order, config=FRACTIONAL, now=OPEN, acct=None):
+        [r] = check_orders(config, acct or account(positions=self.HELD), [order], 0, now=now)
+        return r
+
+    def test_fractional_market_buy_and_sell_approved(self):
+        self.assertTrue(self.check(market_buy())["approved"])
+        r = self.check(market_sell())
+        self.assertTrue(r["approved"], r)
+        self.assertAlmostEqual(r["notional_usd"], 0.5 * 99.9, places=2)
+
+    def test_market_orders_need_the_config_flag(self):
+        self.assertIn("market orders are not allowed", self.check(market_buy(), config=CONFIG)["reasons"])
+
+    def test_market_orders_only_inside_the_window(self):
+        for when in [datetime.datetime(2026, 11, 3, 9, 45, tzinfo=EASTERN),
+                     datetime.datetime(2026, 11, 3, 15, 45, tzinfo=EASTERN),
+                     datetime.datetime(2026, 11, 7, 11, 0, tzinfo=EASTERN)]:  # Saturday
+            r = self.check(market_buy(), now=when)
+            self.assertFalse(r["approved"], when)
+            self.assertIn("weekdays", r["reasons"][0])
+        pacific = datetime.datetime(2026, 11, 3, 8, 0, tzinfo=datetime.timezone(datetime.timedelta(hours=-8)))
+        self.assertTrue(self.check(market_buy(), now=pacific)["approved"])  # 11:00 ET
+
+    def test_market_buy_must_be_by_dollars_and_within_caps(self):
+        self.assertFalse(self.check({**market_buy(), "quantity": 0.2})["approved"])
+        self.assertIn("exceeds max_order_usd", self.check(market_buy(amount=151))["reasons"][0])
+        acct = account(cash=50, positions=self.HELD)
+        self.assertIn("exceeds cash", self.check(market_buy(amount=60), acct=acct)["reasons"][-1])
+
+    def test_whole_share_market_sell_rejected(self):
+        self.assertIn("whole-share sells must be limit orders", self.check(market_sell(qty=1.0))["reasons"])
+
+    def test_fractional_limit_rejected(self):
+        r = self.check(buy("SPY", 0.5, 100.5))
+        self.assertIn("Robinhood does not accept fractional limit orders", r["reasons"])
+
+    def test_market_order_still_needs_a_tight_spread(self):
+        acct = {**account(positions=self.HELD), "quotes": {**QUOTES, "SPY": {"bid": 90.0, "ask": 100.0}}}
+        self.assertFalse(self.check(market_buy(), acct=acct)["approved"])
+
+    def test_strategy_sells_fractional_at_market_and_whole_at_limit(self):
+        for qty, otype in [(1.5, "market"), (2.0, "limit")]:
+            pos = [{"symbol": "QQQ", "quantity": qty, "market_value": qty * 50}]
+            orders, _ = propose_orders(FRACTIONAL, account(cash=400, positions=pos), {"QQQ": DOWN})
+            [sell] = [o for o in orders if o["side"] == "sell"]
+            self.assertEqual(sell["type"], otype)

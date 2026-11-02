@@ -1,5 +1,5 @@
 {
-  "mode": "dry_run",
+  "mode": "live",
   "budget_usd": 500,
   "max_order_usd": 150,
   "min_order_usd": 5,
@@ -7,6 +7,7 @@
   "max_drawdown_pct": 0.15,
   "cash_reserve_pct": 0.05,
   "limit_buffer_pct": 0.005,
+  "allow_fractional_market": true,
   "rebalance_band_pct": 0.20,
   "sma_days": 200,
   "symbols": ["SPY", "QQQ", "SMH"],

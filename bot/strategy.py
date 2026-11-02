@@ -44,6 +44,16 @@ def targets(config, total_value, closes_by_symbol):
     return out
 
 
+def sell_order(config, sym, qty, quote, reason):
+    """Whole shares sell at a limit; fractional ones by quantity at market
+    when config allows it (Robinhood rejects fractional limit orders)."""
+    if config.get("allow_fractional_market") and abs(qty - round(qty)) >= 1e-9:
+        return {"symbol": sym, "side": "sell", "type": "market", "quantity": qty, "reason": reason}
+    limit = round(quote["bid"] * (1 - config["limit_buffer_pct"]), 2)
+    return {"symbol": sym, "side": "sell", "type": "limit", "quantity": qty,
+            "limit_price": limit, "reason": reason}
+
+
 def propose_orders(config, account, closes_by_symbol, exits=()):
     """Turn targets into limit orders. Symbols with no signal are left alone.
     Symbols in exits (rotated out of the universe) are sold in full."""
@@ -54,10 +64,8 @@ def propose_orders(config, account, closes_by_symbol, exits=()):
     for sym in exits:
         pos = held.get(sym)
         if pos and pos["quantity"] > 0:
-            limit = round(account["quotes"][sym]["bid"] * (1 - buf), 2)
-            orders.append({"symbol": sym, "side": "sell", "type": "limit",
-                           "quantity": pos["quantity"], "limit_price": limit,
-                           "reason": "rotated out of universe: exit"})
+            orders.append(sell_order(config, sym, pos["quantity"], account["quotes"][sym],
+                                     "rotated out of universe: exit"))
     for sym, t in tgts.items():
         if t["target_usd"] is None:
             continue
@@ -66,24 +74,22 @@ def propose_orders(config, account, closes_by_symbol, exits=()):
         diff = t["target_usd"] - pos["market_value"]
 
         if t["target_usd"] == 0 and pos["quantity"] > 0:
-            limit = round(quote["bid"] * (1 - buf), 2)
-            orders.append({"symbol": sym, "side": "sell", "type": "limit",
-                           "quantity": pos["quantity"], "limit_price": limit,
-                           "reason": "below SMA: exit"})
+            orders.append(sell_order(config, sym, pos["quantity"], quote, "below SMA: exit"))
             continue
 
         if abs(diff) < max(config["min_order_usd"], config["rebalance_band_pct"] * t["slot_usd"]):
             continue
         if diff > 0:
             notional = min(diff, config["max_order_usd"])
+            if config.get("allow_fractional_market"):
+                orders.append({"symbol": sym, "side": "buy", "type": "market",
+                               "dollar_amount": round(notional, 2), "reason": "build to target"})
+                continue
             limit = round(quote["ask"] * (1 + buf), 2)
             orders.append({"symbol": sym, "side": "buy", "type": "limit",
                            "quantity": round(notional / limit, 6), "limit_price": limit,
                            "reason": "build to target"})
         else:
-            limit = round(quote["bid"] * (1 - buf), 2)
-            qty = min(pos["quantity"], round(-diff / limit, 6))
-            orders.append({"symbol": sym, "side": "sell", "type": "limit",
-                           "quantity": qty, "limit_price": limit,
-                           "reason": "over target: trim"})
+            qty = min(pos["quantity"], round(-diff / (quote["bid"] * (1 - buf)), 6))
+            orders.append(sell_order(config, sym, qty, quote, "over target: trim"))
     return orders, tgts

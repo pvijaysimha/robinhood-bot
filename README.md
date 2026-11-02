@@ -78,7 +78,8 @@ reverse sharply. Rotating more than monthly mostly adds trading costs.
 | Total money put to work | `budget_usd` $500 (orders sized off the smaller of this and account value) |
 | Largest single order | $150 |
 | Orders per day | 3 |
-| Order type | limit only, at most 0.5% past the bid/ask |
+| Order type | limit, at most 0.5% past the bid/ask; fractional shares as market orders (buys by dollars) only with `allow_fractional_market`, on weekdays 10:00-15:30 ET |
+| Spread | no order while the quote spread is wider than 0.5% |
 | Symbols | buys only in the current universe (or `symbols`); sells also for rotated-out funds the bot bought |
 | Drawdown halt | no buys while account value is below 85% of `budget_usd` (sells still allowed) |
 | Open orders | no new order for a symbol that already has one open |

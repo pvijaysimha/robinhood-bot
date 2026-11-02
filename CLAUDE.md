@@ -13,7 +13,9 @@ Trading MCP (`robinhood-trading`). Follow these steps exactly when asked to
 - Never place an order without the human's explicit "yes" for that order
   in this conversation. Silence, "looks good" to the plan as a whole, or an
   earlier session's approval does not count.
-- Limit orders only. No options, no market orders.
+- Limit orders, except the fractional market orders the plan proposes when
+  `config.json` has `allow_fractional_market` (Robinhood rejects fractional
+  limit orders). No options, and no other market orders.
 - Buy only symbols in the current universe (the `symbols` that
   `python3 -m bot.cli universe` prints). Sell only those, or the rotated-out
   `exits` the plan lists.
@@ -52,23 +54,32 @@ Trading MCP (`robinhood-trading`). Follow these steps exactly when asked to
 4. **Stop here if `mode` is `dry_run`.** Say what would have been placed.
 
 5. **If `mode` is `live`**, first call `get_trade_approval_setting` for the
-   account. Unless `human_must_approve_trades` is `true`, place nothing:
-   tell the human to turn on trade approvals in the Robinhood app, so every
-   order also needs their approval at the broker, and stop. Read the setting
-   again on every live run; it can be changed in the app at any time.
+   account and tell the human whether Robinhood trade approvals are on. If
+   they are off, say plainly that orders will execute without approval in
+   the Robinhood app (the human chose this on 2026-11-02); the per-order
+   "yes" below still applies. Read the setting again on every live run.
    Then, for each approved order, one at a time:
    1. Ask the human to approve that specific order. Wait for "yes". If the
       quotes in `snapshot.json` are more than 15 minutes old by then, do
       not place it: rebuild the snapshot, run the plan again and ask again.
-   2. Call `review_equity_order` with exactly the planned parameters
-      (limit order, the planned quantity and limit price). If it returns
-      any alert or warning, show it verbatim and do not place that order.
-   3. Call `place_equity_order` with the same parameters.
+   2. Call `review_equity_order` with exactly the planned parameters and
+      `market_hours` `regular_hours`: a limit order with its quantity and
+      limit price, a market buy with its `dollar_amount`, or a market sell
+      with its `quantity`. If it returns any alert or warning, show it
+      verbatim and do not place that order. Show its
+      `market_data_disclosure` verbatim. For a market order, also check
+      the review's quote: `state` `active` and `venue_last_trade_time`
+      within the last 5 minutes. Otherwise the market may be closed and
+      the order would queue for the open, so do not place it.
+   3. Call `place_equity_order` with the same parameters and a fresh UUID
+      as `ref_id` (reuse it only to retry a transport failure).
    4. Call `get_equity_orders` for that order ID to get its real state, and
       tell the human the order is waiting for their approval in the
       Robinhood app if that is what the state or `get_trade_approvals` shows.
-   5. Run `python3 -m bot.cli record --symbol ... --side ... --quantity ...
-      --limit-price ... --order-id ... --state ...`.
+   5. Run `python3 -m bot.cli record --symbol ... --side ... --type ...`
+      with `--quantity` and `--limit-price` (limit), `--dollar-amount`
+      (market buy) or `--quantity` (market sell), then `--order-id ...
+      --state ...`.
 
 6. **Commit** `logs/` and `universe.json` with a message like
    `Trading run YYYY-MM-DD` so the record survives.

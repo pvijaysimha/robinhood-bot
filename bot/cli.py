@@ -4,8 +4,9 @@
       Run the strategy and the guard over a snapshot of the account, print
       the plan as JSON, and append it to logs/plans.jsonl. Never trades.
 
-  python3 -m bot.cli record --symbol SPY --side buy --quantity 0.2 \
-      --limit-price 512.30 --order-id <id> --state <state>
+  python3 -m bot.cli record --symbol SPY --side buy --type market \
+      --dollar-amount 150 --order-id <id> --state <state>
+  (limit orders: --type limit --quantity 2 --limit-price 512.30)
       Append a placed order to logs/orders.jsonl. The guard counts today's
       entries there toward max_orders_per_day.
 
@@ -138,8 +139,9 @@ def record(args):
     append(ORDERS_LOG, {
         "date": now().date().isoformat(),
         "time": now().strftime("%H:%M:%S"),
-        "symbol": args.symbol, "side": args.side, "quantity": args.quantity,
-        "limit_price": args.limit_price, "order_id": args.order_id, "state": args.state,
+        "symbol": args.symbol, "side": args.side, "type": args.type, "quantity": args.quantity,
+        "limit_price": args.limit_price, "dollar_amount": args.dollar_amount,
+        "order_id": args.order_id, "state": args.state,
     })
 
 
@@ -154,11 +156,19 @@ def main(argv=None):
     sr = sub.add_parser("record")
     sr.add_argument("--symbol", required=True)
     sr.add_argument("--side", required=True, choices=["buy", "sell"])
-    sr.add_argument("--quantity", required=True, type=float)
-    sr.add_argument("--limit-price", required=True, type=float)
+    sr.add_argument("--type", default="limit", choices=["limit", "market"])
+    sr.add_argument("--quantity", type=float)
+    sr.add_argument("--limit-price", type=float)
+    sr.add_argument("--dollar-amount", type=float)
     sr.add_argument("--order-id", required=True)
     sr.add_argument("--state", required=True)
     args = p.parse_args(argv)
+    if args.cmd == "record":
+        need = ["quantity", "limit_price"] if args.type == "limit" else (
+            ["dollar_amount"] if args.side == "buy" else ["quantity"])
+        missing = [n for n in need if getattr(args, n) is None]
+        if missing:
+            p.error(f"{args.type} {args.side} needs --" + ", --".join(m.replace("_", "-") for m in missing))
     if args.cmd == "plan":
         plan(args.snapshot)
     elif args.cmd == "screen":
