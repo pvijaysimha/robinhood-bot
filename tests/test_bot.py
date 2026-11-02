@@ -209,3 +209,41 @@ class UniverseTest(unittest.TestCase):
         [r] = check_orders(CONFIG, acct, [buy("SPY", 1.0, 100.5)], 0)
         self.assertFalse(r["approved"])
         self.assertIn("spread", r["reasons"][0])
+
+
+MIX = {**CONFIG, "symbols": ["SPY", "QQQ", "VXUS"],
+       "weights": {"SPY": 0.6, "QQQ": 0.2, "VXUS": 0.2}, "trend_filter": []}
+
+
+class WeightsTest(unittest.TestCase):
+    def test_targets_follow_weights(self):
+        _, t = propose_orders(MIX, account(), {})
+        self.assertAlmostEqual(t["SPY"]["target_usd"], 500 * 0.95 * 0.6)
+        self.assertAlmostEqual(t["QQQ"]["target_usd"], 500 * 0.95 * 0.2)
+
+    def test_unfiltered_symbols_held_below_sma_and_without_history(self):
+        orders, t = propose_orders(MIX, account(), {"SPY": DOWN})
+        self.assertEqual({s: x["signal"] for s, x in t.items()}, {"SPY": "hold", "QQQ": "hold", "VXUS": "hold"})
+        self.assertEqual(sorted(o["symbol"] for o in orders), ["QQQ", "SPY", "VXUS"])
+
+    def test_trend_filter_applies_only_to_listed_symbols(self):
+        cfg = {**MIX, "trend_filter": ["QQQ"]}
+        pos = [{"symbol": "QQQ", "quantity": 2.0, "market_value": 95.0}]
+        orders, t = propose_orders(cfg, account(cash=405, positions=pos), {"QQQ": DOWN})
+        self.assertEqual(t["QQQ"]["target_usd"], 0.0)
+        self.assertIn(("QQQ", "sell"), [(o["symbol"], o["side"]) for o in orders])
+
+    def test_big_weight_is_built_in_capped_orders(self):
+        orders, _ = propose_orders(MIX, account(), {})
+        spy = next(o for o in orders if o["symbol"] == "SPY")
+        self.assertAlmostEqual(spy["quantity"] * spy["limit_price"], 150, delta=0.01)
+
+    def test_bad_weights_rejected(self):
+        for w in [{"SPY": 0.6, "QQQ": 0.2}, {"SPY": 0.7, "QQQ": 0.2, "VXUS": 0.2}]:
+            with self.assertRaises(ValueError):
+                propose_orders({**MIX, "weights": w}, account(), {})
+
+    def test_mix_passes_guard(self):
+        acct = account()
+        orders, _ = propose_orders(MIX, acct, {})
+        self.assertTrue(all(r["approved"] for r in check_orders(MIX, acct, orders, 0)))

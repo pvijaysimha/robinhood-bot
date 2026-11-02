@@ -55,7 +55,7 @@ def correlation(xs, ys):
     return cov / (vx * vy) ** 0.5
 
 
-def screen(candidates, closes_by_symbol, sma_days, top, held=(), keep_top=None):
+def screen(candidates, closes_by_symbol, sma_days, top, held=(), keep_top=None, themes=None):
     """Return every candidate with its verdict, best momentum first."""
     keep_top = max(keep_top or top, top)
     rows = []
@@ -87,6 +87,11 @@ def screen(candidates, closes_by_symbol, sma_days, top, held=(), keep_top=None):
             continue
         if len(picked) >= top:
             row["reason"] = f"outside the top {top}"
+            continue
+        theme = (themes or {}).get(row["symbol"])
+        twin = next((p for p in picked if theme and (themes or {}).get(p["symbol"]) == theme), None)
+        if twin:
+            row["reason"] = f"same theme ({theme}) as {twin['symbol']}"
             continue
         rets = returns(closes_by_symbol[row["symbol"]], CORR_DAYS)
         for p in picked:

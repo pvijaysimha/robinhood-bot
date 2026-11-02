@@ -1,5 +1,7 @@
-"""Trend-following targets: hold an equal slice of each ETF while it trades
-above its N-day simple moving average, hold none of it while below."""
+"""Targets: hold each symbol's slice (config "weights", or equal slices)
+of the investable money. Symbols in config "trend_filter" (all of them when
+it is absent) are held only while above their N-day simple moving average;
+the rest are always held, so the mix is simply kept near its weights."""
 
 
 def sma(closes, days):
@@ -17,25 +19,35 @@ def signal(closes, days):
     return "in" if closes[-1] > avg else "out"
 
 
+def weights(config):
+    symbols = config["symbols"]
+    w = config.get("weights") or {s: 1 / len(symbols) for s in symbols}
+    if set(w) != set(symbols) or any(x <= 0 for x in w.values()) or sum(w.values()) > 1 + 1e-9:
+        raise ValueError(f"weights {w} must be positive, cover exactly {symbols} and sum to at most 1")
+    return w
+
+
 def targets(config, total_value, closes_by_symbol):
-    """Dollar target per symbol. Sizes off the smaller of budget and account
-    value, so deposits above the budget are never put to work."""
+    """Dollar target and slice per symbol. Sizes off the smaller of budget
+    and account value, so deposits above the budget are never put to work."""
     symbols = config["symbols"]
     if not symbols:
-        return {}, 0.0
+        return {}
     investable = min(config["budget_usd"], total_value) * (1 - config["cash_reserve_pct"])
-    slot = investable / len(symbols)
+    filtered = set(config.get("trend_filter", symbols))
     out = {}
-    for sym in symbols:
-        sig = signal(closes_by_symbol.get(sym, []), config["sma_days"])
-        out[sym] = {"signal": sig, "target_usd": None if sig is None else (slot if sig == "in" else 0.0)}
-    return out, slot
+    for sym, w in weights(config).items():
+        slot = investable * w
+        sig = signal(closes_by_symbol.get(sym, []), config["sma_days"]) if sym in filtered else "hold"
+        out[sym] = {"signal": sig, "slot_usd": slot,
+                    "target_usd": None if sig is None else (0.0 if sig == "out" else slot)}
+    return out
 
 
 def propose_orders(config, account, closes_by_symbol, exits=()):
     """Turn targets into limit orders. Symbols with no signal are left alone.
     Symbols in exits (rotated out of the universe) are sold in full."""
-    tgts, slot = targets(config, account["total_value"], closes_by_symbol)
+    tgts = targets(config, account["total_value"], closes_by_symbol)
     held = {p["symbol"]: p for p in account["positions"]}
     buf = config["limit_buffer_pct"]
     orders = []
@@ -60,14 +72,14 @@ def propose_orders(config, account, closes_by_symbol, exits=()):
                            "reason": "below SMA: exit"})
             continue
 
-        if abs(diff) < max(config["min_order_usd"], config["rebalance_band_pct"] * slot):
+        if abs(diff) < max(config["min_order_usd"], config["rebalance_band_pct"] * t["slot_usd"]):
             continue
         if diff > 0:
             notional = min(diff, config["max_order_usd"])
             limit = round(quote["ask"] * (1 + buf), 2)
             orders.append({"symbol": sym, "side": "buy", "type": "limit",
                            "quantity": round(notional / limit, 6), "limit_price": limit,
-                           "reason": "above SMA: build to target"})
+                           "reason": "build to target"})
         else:
             limit = round(quote["bid"] * (1 - buf), 2)
             qty = min(pos["quantity"], round(-diff / limit, 6))

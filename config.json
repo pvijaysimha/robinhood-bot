@@ -9,5 +9,7 @@
   "limit_buffer_pct": 0.005,
   "rebalance_band_pct": 0.20,
   "sma_days": 200,
-  "universe": {"source": "screen", "top": 5, "keep_while_in_top": 10, "max_age_days": 35}
+  "symbols": ["SPY", "QQQ", "SMH"],
+  "weights": {"SPY": 0.6, "QQQ": 0.2, "SMH": 0.2},
+  "trend_filter": []
 }
