@@ -10,7 +10,7 @@
   "allow_fractional_market": true,
   "rebalance_band_pct": 0.20,
   "sma_days": 200,
-  "symbols": ["SPY", "QQQ", "SMH"],
-  "weights": {"SPY": 0.6, "QQQ": 0.2, "SMH": 0.2},
+  "symbols": ["SPY", "SCHD", "GLD"],
+  "weights": {"SPY": 0.6, "SCHD": 0.2, "GLD": 0.2},
   "trend_filter": []
 }

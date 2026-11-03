@@ -13,8 +13,8 @@ investment plan. Most of your savings belong in plain index funds.
 `config.json` sets the mix:
 
 ```json
-"symbols": ["SPY", "QQQ", "SMH"],
-"weights": {"SPY": 0.6, "QQQ": 0.2, "SMH": 0.2},
+"symbols": ["SPY", "SCHD", "GLD"],
+"weights": {"SPY": 0.6, "SCHD": 0.2, "GLD": 0.2},
 "trend_filter": []
 ```
 
@@ -33,14 +33,18 @@ gave:
 | Strategy | CAGR | Worst drop |
 |---|---|---|
 | SPY buy & hold | 11.9% | -34% |
-| SPY 60 / QQQ 20 / SMH 20 | 16.7% | -32% |
+| SPY 60 / SCHD 20 / GLD 20 (current) | 11.0% | -28% |
+| SPY 60 / QQQ 20 / SMH 20 (until 2026-11-03) | 16.2% | -29% |
 | SPY/QQQ/VXUS, each with a 200-day SMA filter | 7.1% | -19% |
 | Momentum screen of 51 ETFs, top 5 (see below) | 1.4% | -37% |
 
-The mix's lead comes from tech and chip stocks, the winners of exactly
-this period, so treat it as an upper bound, not a forecast. Chip stocks
-fell about 45% in 2022. 40% of the mix is in tech and semiconductors,
-which SPY already holds a lot of.
+The SMH mix's lead came from chip stocks, the winners of exactly this
+period, so it was an upper bound, not a forecast. The owner already holds
+chip stocks elsewhere, so the mix now diversifies away from them:
+dividend stocks (SCHD) and gold (GLD) cut its correlation with SMH from
+0.92 to 0.77, and in 2022 it fell 14% against 24% for the SMH mix. Since
+2021 it returned 12.7% a year against 12.9% for SPY, with less volatility.
+The backtest ignores dividends, which understates SCHD.
 
 ## Optional: a screened universe
 
