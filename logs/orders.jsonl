@@ -1,3 +1,6 @@
 {"date": "2026-11-02", "time": "09:49:01", "symbol": "SPY", "side": "buy", "type": "market", "quantity": null, "limit_price": null, "dollar_amount": 150.0, "order_id": "6ae8cd00-191b-491c-832f-66cdc9226cc3", "state": "filled"}
 {"date": "2026-11-02", "time": "09:49:20", "symbol": "QQQ", "side": "buy", "type": "market", "quantity": null, "limit_price": null, "dollar_amount": 95.0, "order_id": "6ae8cd17-1083-46cb-999b-4cbce3196181", "state": "filled"}
 {"date": "2026-11-02", "time": "09:49:51", "symbol": "SMH", "side": "buy", "type": "market", "quantity": null, "limit_price": null, "dollar_amount": 95.0, "order_id": "6ae8cd2a-1fae-447c-bc29-de4bb966f11f", "state": "filled"}
+{"date": "2026-11-03", "time": "08:21:58", "symbol": "QQQ", "side": "sell", "type": "market", "quantity": 0.137533, "limit_price": null, "dollar_amount": null, "order_id": "6aea0a15-9e3a-441a-8330-ab694ff8421b", "state": "filled"}
+{"date": "2026-11-03", "time": "08:21:58", "symbol": "SMH", "side": "sell", "type": "market", "quantity": 0.183065, "limit_price": null, "dollar_amount": null, "order_id": "6aea0a16-db8d-403c-a636-923ef844a3a9", "state": "filled"}
+{"date": "2026-11-03", "time": "08:21:58", "symbol": "SPY", "side": "buy", "type": "market", "quantity": null, "limit_price": null, "dollar_amount": 135.17, "order_id": "6aea0a17-edaf-446a-99ee-336758e9d130", "state": "filled"}
