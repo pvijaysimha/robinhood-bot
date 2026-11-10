@@ -1,7 +1,7 @@
 {
   "mode": "live",
-  "budget_usd": 500,
-  "max_order_usd": 150,
+  "budget_usd": 6000,
+  "max_order_usd": 500,
   "min_order_usd": 5,
   "max_orders_per_day": 3,
   "max_drawdown_pct": 0.15,
@@ -10,7 +10,7 @@
   "allow_fractional_market": true,
   "rebalance_band_pct": 0.20,
   "sma_days": 200,
-  "symbols": ["SPY", "SCHD", "GLD"],
-  "weights": {"SPY": 0.6, "SCHD": 0.2, "GLD": 0.2},
-  "trend_filter": []
+  "symbols": ["SPY", "SCHD", "GLD", "IEF", "MSFT", "GOOGL", "V"],
+  "weights": {"SPY": 0.45, "SCHD": 0.15, "GLD": 0.15, "IEF": 0.10, "MSFT": 0.05, "GOOGL": 0.05, "V": 0.05},
+  "trend_filter": ["MSFT", "GOOGL", "V"]
 }
