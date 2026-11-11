@@ -1,3 +1,5 @@
 snapshot.json
 __pycache__/
 candidates.json
+logs/*
+!logs/.gitkeep

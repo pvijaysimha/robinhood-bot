@@ -129,7 +129,8 @@ python3 -m unittest                     # tests
 ```
 
 Logs: `logs/plans.jsonl` (every plan), `logs/orders.jsonl` (every placed order),
-`logs/screens.jsonl` (every screen).
+`logs/screens.jsonl` (every screen). They are git-ignored and stay on this
+machine only; the guard reads `logs/orders.jsonl`, so keep it.
 
 ## Judging it
 

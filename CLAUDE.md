@@ -81,8 +81,11 @@ Trading MCP (`robinhood-trading`). Follow these steps exactly when asked to
       (market buy) or `--quantity` (market sell), then `--order-id ...
       --state ...`.
 
-6. **Commit** `logs/` and `universe.json` with a message like
-   `Trading run YYYY-MM-DD` so the record survives.
+6. **Logs stay local.** `logs/` is git-ignored (the repo is public and the
+   logs show trades and account value), so never commit, force-add or push
+   it. Commit `universe.json` only if it changed, with a message like
+   `Trading run YYYY-MM-DD`. The guard reads today's orders from
+   `logs/orders.jsonl`, so never delete it.
 
 ## Screening the universe (when step 0 says so, or the human asks)
 
@@ -110,5 +113,5 @@ rules (`top`, `keep_while_in_top`, `max_age_days`) are in `config.json`'s
 5. Show the human the new universe, what was `added` and `removed`, and why
    the closest runners-up were skipped. Removed funds the bot bought are sold
    as `exits` on the next plan, each still needing the human's "yes".
-6. Commit `universe.json` and `logs/screens.jsonl` with a message like
-   `Screen YYYY-MM-DD`.
+6. Commit `universe.json` (not `logs/`, which stays local) with a message
+   like `Screen YYYY-MM-DD`.
