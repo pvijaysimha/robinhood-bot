@@ -3,7 +3,7 @@
   "budget_usd": 6000,
   "max_order_usd": 500,
   "min_order_usd": 5,
-  "max_orders_per_day": 3,
+  "max_orders_per_day": 6,
   "max_drawdown_pct": 0.15,
   "cash_reserve_pct": 0.05,
   "limit_buffer_pct": 0.005,
